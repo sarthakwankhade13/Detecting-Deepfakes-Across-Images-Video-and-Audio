@@ -29,7 +29,7 @@ if uploaded_file is not None:
     # ================= IMAGE =================
     if media_type == "Image":
 
-        image = PIL.Image.open(file_path)
+        image = Image.open(file_path)
         frame = np.array(image)
 
         label, score = predict_frame(frame)

@@ -1,35 +1,18 @@
-from fastapi import FastAPI, UploadFile, File
-import shutil
-import os
-import random
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from routes.detect import router
 
 app = FastAPI()
 
-UPLOAD_FOLDER = "uploads"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+app.include_router(router)
 
 @app.get("/")
 def home():
     return {"message": "Backend is working 🚀"}
-
-@app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-
-    # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # Dummy detection (temporary)
-    confidence = random.randint(70, 99)
-
-    result = {
-        "filename": file.filename,
-        "status": "Deepfake" if confidence > 80 else "Real",
-        "confidence": confidence,
-        "reason": "Initial model check (demo)"
-    }
-
-    return result

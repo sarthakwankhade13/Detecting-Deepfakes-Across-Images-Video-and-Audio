@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy import create_engine, Column, Integer, Float, String, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./test.db"
@@ -14,7 +14,7 @@ class Result(Base):
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String(255))
     status = Column(String(50))
-    confidence = Column(Integer)
+    confidence = Column(Float)
     reason = Column(Text)
 
 Base.metadata.create_all(bind=engine)
