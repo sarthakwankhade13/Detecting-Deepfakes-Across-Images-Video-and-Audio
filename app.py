@@ -4,12 +4,12 @@ import numpy as np
 from PIL import Image
 import tempfile
 
-from image_model import predict_frame
-from video_model import detect_video
-from audio_model import detect_audio
+from deepfake_system import predict_frame, detect_video, detect_audio
 
 
-st.title("Deepfake Detection Tester")
+st.set_page_config(page_title="Deepfake Detector", layout="centered")
+
+st.title("🎭 Deepfake Detection Tester")
 
 media_type = st.selectbox(
     "Select Media Type",
@@ -18,35 +18,63 @@ media_type = st.selectbox(
 
 uploaded_file = st.file_uploader("Upload File")
 
+
 if uploaded_file is not None:
 
     # save temp file
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(uploaded_file.read())
+    file_path = tfile.name
 
+    # ================= IMAGE =================
     if media_type == "Image":
 
-        image = Image.open(tfile.name)
+        image = PIL.Image.open(file_path)
         frame = np.array(image)
 
-        result = predict_frame(frame)[0]
+        label, score = predict_frame(frame)
 
-        st.image(image)
-        st.write("Result:", result["label"])
-        st.write("Confidence:", result["score"])
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
+        st.subheader("Prediction")
+
+        if label.lower() == "fake":
+            st.error(f"FAKE ❌  | Confidence: {score:.3f}")
+        else:
+            st.success(f"REAL ✅ | Confidence: {score:.3f}")
+
+    # ================= VIDEO =================
     elif media_type == "Video":
 
         st.video(uploaded_file)
 
-        conf = detect_video(tfile.name)
+        with st.spinner("Analyzing Video Frames..."):
 
-        st.write("Video Confidence:", conf)
+            verdict, conf = detect_video(file_path)
 
+        st.subheader("Prediction")
+
+        if verdict == "FAKE":
+            st.error(f"FAKE ❌ | Confidence: {conf:.3f}")
+        elif verdict == "REAL":
+            st.success(f"REAL ✅ | Confidence: {conf:.3f}")
+        else:
+            st.warning("Could not analyze video")
+
+    # ================= AUDIO =================
     elif media_type == "Audio":
 
         st.audio(uploaded_file)
 
-        result = detect_audio(tfile.name)
+        with st.spinner("Analyzing Audio..."):
 
-        st.write(result)
+            verdict, conf = detect_audio(file_path)
+
+        st.subheader("Prediction")
+
+        if verdict == "FAKE":
+            st.error(f"FAKE ❌ | Confidence: {conf:.3f}")
+        elif verdict == "REAL":
+            st.success(f"REAL ✅ | Confidence: {conf:.3f}")
+        else:
+            st.warning("Could not analyze audio")
