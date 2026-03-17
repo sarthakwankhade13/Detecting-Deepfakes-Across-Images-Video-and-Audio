@@ -6,30 +6,56 @@ from PIL import Image
 from transformers import pipeline
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
 
-
-# ================= IMAGE MODEL =================
+# ================= IMAGE MODELS (ENSEMBLE) =================
 
 device_pipe = 0 if torch.cuda.is_available() else -1
 
-image_detector = pipeline(
+model1 = pipeline(
+    "image-classification",
+    model="dima806/deepfake_vs_real_image_detection",
+    device=device_pipe
+)
+
+model2 = pipeline(
     "image-classification",
     model="prithivMLmods/Deep-Fake-Detector-Model",
     device=device_pipe
 )
 
 
+def preprocess_artifact(img):
+    """
+    Simple artifact emphasis preprocessing
+    """
+    img = np.array(img)
+    img = cv2.GaussianBlur(img, (3, 3), 0)
+    return Image.fromarray(img)
+
+
 def predict_frames_batch(frames):
 
     images = [Image.fromarray(f) for f in frames]
+    images_art = [preprocess_artifact(img) for img in images]
 
-    outputs = image_detector(images)
+    # RUN MODELS SIMULTANEOUSLY
+    out1 = model1(images)
+    out2 = model2(images)
+    out3 = model2(images_art)
 
     results = []
 
-    for o in outputs:
-        label = o[0]["label"]
-        score = float(o[0]["score"])
-        results.append((label, score))
+    for i in range(len(images)):
+
+        score1 = float(out1[i][0]["score"])
+        score2 = float(out2[i][0]["score"])
+        score3 = float(out3[i][0]["score"])
+
+        # weighted fusion
+        final_score = 0.4 * score1 + 0.3 * score2 + 0.3 * score3
+
+        label = "FAKE" if final_score > 0.5 else "REAL"
+
+        results.append((label, final_score))
 
     return results
 
