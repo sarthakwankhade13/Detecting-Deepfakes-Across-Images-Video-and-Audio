@@ -10,13 +10,20 @@ from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtra
 
 device_pipe = 0 if torch.cuda.is_available() else -1
 
-model1 = pipeline(
+
+deepfake_model = pipeline(
     "image-classification",
     model="dima806/deepfake_vs_real_image_detection",
     device=device_pipe
 )
 
-model2 = pipeline(
+ai_gen_model = pipeline(
+    "image-classification",
+    model="umm-maybe/AI-image-detector",
+    device=device_pipe
+)
+
+general_fake_model = pipeline(
     "image-classification",
     model="prithivMLmods/Deep-Fake-Detector-Model",
     device=device_pipe
@@ -24,9 +31,6 @@ model2 = pipeline(
 
 
 def preprocess_artifact(img):
-    """
-    Simple artifact emphasis preprocessing
-    """
     img = np.array(img)
     img = cv2.GaussianBlur(img, (3, 3), 0)
     return Image.fromarray(img)
@@ -37,23 +41,34 @@ def predict_frames_batch(frames):
     images = [Image.fromarray(f) for f in frames]
     images_art = [preprocess_artifact(img) for img in images]
 
-    # RUN MODELS SIMULTANEOUSLY
-    out1 = model1(images)
-    out2 = model2(images)
-    out3 = model2(images_art)
+    # ---- RUN ALL MODELS ----
+    deepfake_out = deepfake_model(images)
+    ai_out = ai_gen_model(images)
+    gen_fake_out = general_fake_model(images_art)
 
     results = []
 
     for i in range(len(images)):
 
-        score1 = float(out1[i][0]["score"])
-        score2 = float(out2[i][0]["score"])
-        score3 = float(out3[i][0]["score"])
+        deepfake_score = float(deepfake_out[i][0]["score"])
+        ai_score = float(ai_out[i][0]["score"])
+        general_score = float(gen_fake_out[i][0]["score"])
 
-        # weighted fusion
-        final_score = 0.4 * score1 + 0.3 * score2 + 0.3 * score3
+        # ensemble fusion logic
+        fake_score = 0.5 * deepfake_score + 0.5 * general_score
 
-        label = "FAKE" if final_score > 0.5 else "REAL"
+        # TRI CLASS DECISION
+        if ai_score > 0.60:
+            label = "AI_GENERATED"
+            final_score = ai_score
+
+        elif fake_score > 0.55:
+            label = "DEEPFAKE"
+            final_score = fake_score
+
+        else:
+            label = "REAL"
+            final_score = 1 - max(ai_score, fake_score)
 
         results.append((label, final_score))
 
